@@ -4,65 +4,55 @@ import numpy as np
 
 import torch
 
-DATA_PATH = "/home/colorful/jupyter_workspace/Albert/Congestion-long term/Data"
-
-def series_to_supervised(data, n_in=24, n_out=1, dropnan=True):
-    """
-    将时间序列重构为监督学习数据集
-    :params data: 观测值序列, 类型为Dataframe
-    :params n_in: 输入的滞后观测值(X)长度
-    :params n_out: 输出观测值(y)的长度
-    :params dropnan: 是否丢弃含有NaN值的行, 类型为布尔值
-    :return 经过重组后的Pandas DataFrame序列
-    """
-    cols, names = list(), list()
-    # 输入序列 (t-n, ... t-1)
-    for i in range(n_in, 0, -1):
-        cols.append(data.shift(i))
-        names += [('var%d(t-%d)' % (j+1, i)) for j in range(data.shape[1])]
-        
-    # 预测序列 (t, t+1, ... t+n)
-    for i in range(0, n_out):
-        cols.append(data.shift(-i))
-        if i == 0:
-            names += [('var%d(t)' % (j+1)) for j in range(data.shape[1])]
-        else:
-            names += [('var%d(t+%d)' % (j+1, i)) for j in range(data.shape[1])]
-    # 将列名和数据拼接在一起
-    agg = pd.concat(cols, axis=1)
-    agg.columns = names
-    # 丢弃含有NaN值的行
-    if dropnan:
-        agg.dropna(inplace=True)
-    return agg
+DATA_PATH = "/home/songpengcao/Autox/Thesis/time-series"
 
 
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, mode, n_in=24, n_out=24):
-        if mode == "Train":
-            self.data_dir = os.path.join(DATA_PATH, "bus30_train.csv")
-        else:
-            self.data_dir = os.path.join(DATA_PATH, "bus30_test.csv")
-        self.df = pd.read_csv(self.data_dir, header=None).T
+    def __init__(self, mode, w=24, h=1):
+        self.data_dir = os.path.join(DATA_PATH, 'Data', mode)
+        self.load_path = os.path.join(self.data_dir, "load.csv")
+        self.branch_path = os.path.join(self.data_dir, "branch.csv")
 
-        self.data_list = np.zeros([self.df.shape[1], self.df.shape[0]-n_in-n_out+1, n_in+n_out])
-        for line_num in range(self.df.shape[1]):
-            temp = pd.DataFrame(self.df[line_num])
-            temp = series_to_supervised(temp, n_in, n_out, dropnan=True)
-            self.data_list[line_num, :, :] = np.array(temp)
-            
-        print(self.data_list.shape)
+        self.load = np.loadtxt(self.load_path, delimiter=',')
+        self.branch = np.loadtxt(self.branch_path, delimiter=',')
+
+        self.bus_num = self.load.shape[1]
+        self.branch_num = self.branch.shape[1]
+        self.sample_num = self.branch.shape[0]
+
+        self.window = w
+        self.horizon = h
+
+        self.get_data()
+
+    def get_data(self):
+        rng = range(self.window + self.horizon - 1, self.sample_num)
+        n = len(rng)
+
+        self.load_X = np.zeros([n, self.window, self.bus_num])
+        self.branch_X = np.zeros([n, self.window, self.branch_num])
+
+        self.Y = np.zeros([n, self.branch_num])  # shape = (17496, 24, 41)
+        
+        for i in range(n):
+            end = rng[i] - self.horizon + 1
+            start = end - self.window
+
+            self.load_X[i, :, :] = self.load[start:end, :]
+            self.branch_X[i, :, :] = self.branch[start:end, :]
+            self.Y[i, :]    = self.branch[rng[i], :]
+
+        self.X = np.concatenate((self.load_X, self.branch_X), axis=2)  # shape = (17496, 24, 71)
 
     def __len__(self):
-        return self.data_list.shape[1]
+        return self.X.shape[0]
 
     def __getitem__(self, idx):
-        return self.data_list[:, idx, :]
+        return self.X[idx, :, :], self.Y[idx, :]
 
 
 def main():
-    dataset = Dataset("Train")
-
+    dataset = Dataset("train")
 
 if __name__ == "__main__":
     print('Start running: {}'.format(os.path.basename(__file__)))
