@@ -1,6 +1,6 @@
 import os
 import logging
-
+import argparse
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -17,9 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 # CONST
-CHECK_HORIZON = 12 // 2
 LINE_NUM_SET = [9, 21, 28, 29, 34]
-SAMPLE_LEN = 8760 - CHECK_HORIZON
 BATCH_SIZE = 1
 THRESHOLD = 0.5
 
@@ -35,14 +33,15 @@ def get_model(device):
     return model
 
 
-def compute_multi_error(i, model, horizon, visualize=False):
+def compute_multi_error(i, model, args, visualize=False):
+    horizon = args.horizon
     now_error = np.zeros([horizon, 41])
     congestion_status = np.zeros([horizon, 41])
     congestion_label = np.zeros([horizon, 41])
     congestion_result = np.zeros([horizon, 41])
 
     temp_input, _, _ = test_dataset[i] # np.ndarray (24, 71)
-    for j in range(CHECK_HORIZON):
+    for j in range(horizon):
         x = temp_input.copy()
         x = torch.Tensor(x)
         x = x.to(device).to(torch.float32).unsqueeze(0)
@@ -54,7 +53,7 @@ def compute_multi_error(i, model, horizon, visualize=False):
             line_predict = pred_reg[0][line_num].item()
             congestion_prob = pred_cls[0][line_num].item()
             # print(line_predict, congestion_prob)
-            if congestion_prob >= THRESHOLD:
+            if congestion_prob >= args.threshold:
                 pre_label = 1
             else:
                 pre_label = 0
@@ -106,15 +105,29 @@ def compute_multi_error(i, model, horizon, visualize=False):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_name",
+                        type=str,
+                        default=None)
+    parser.add_argument("--horizon",
+                        type=int,
+                        default=12)
+    parser.add_argument("--threshold",
+                        type=float,
+                        default=0.5)
+    args = parser.parse_args()
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using {device} device")
 
     model = get_model(device)
-
+    
     test_dataset = Dataset("test")
     test_label = np.loadtxt('./Data/test/label.csv', delimiter=',').T[24:]
 
-    logger.info("Horizon: {}".format(CHECK_HORIZON))
+    logger.info("Horizon: {}".format(args.horizon))
+
+    SAMPLE_LEN = 8760 - args.horizon
 
     all_recall = np.zeros([SAMPLE_LEN, 41])
     all_recall_count = np.zeros(41)
@@ -124,7 +137,7 @@ if __name__ == "__main__":
     acc_count = np.zeros(41)
 
     for i in tqdm(range(SAMPLE_LEN)):
-        compute_multi_error(i, model, CHECK_HORIZON)
+        compute_multi_error(i, model, args)
 
     for line_num in LINE_NUM_SET:
         recall_score = all_recall[:, line_num].sum() / all_recall_count[line_num]
