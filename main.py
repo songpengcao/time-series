@@ -25,6 +25,7 @@ BATCH_SIZE = 32
 EPOCH_NUM = 10
 ALPHA = 10
 
+
 def train(dataloader, model, device, reg_loss_fn, cls_loss_fn, optimizer):
     model.train()
     for batch, (x, y, l) in enumerate(tqdm(dataloader)):
@@ -66,27 +67,30 @@ def test(dataloader, model, device, reg_loss_fn, cls_loss_fn):
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using {device} device")
-    logger.info(f"Using BCELoss")
 
+    # load data
     train_dataset = Dataset("train")
     train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
 
     test_dataset = Dataset("test")
     test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, drop_last=True)
 
+    # build model
     linenet = LineNet(128).to(device)
 
+    # design loss function
     reg_loss_fn = nn.SmoothL1Loss(reduction='mean')
     cls_loss_fn = nn.BCELoss(reduction='mean')
-    optimizer = torch.optim.Adam(linenet.parameters(), lr=1e-5)
 
     for t in range(EPOCH_NUM):
         logger.info(f"Epoch {t+1}\n-------------------------------")
         print(f"Epoch {t+1}\n-------------------------------")
+        optimizer = torch.optim.Adam(linenet.parameters(), lr=1e-5)
         train(train_dataloader, linenet, device, reg_loss_fn, cls_loss_fn, optimizer)
         test(test_dataloader, linenet, device, reg_loss_fn, cls_loss_fn)
     logger.info("Done!")
 
+    # save model
     torch.save(linenet.state_dict(), "model_reg_cls_alpha={}.pth".format(ALPHA))
 
     writer.flush()
