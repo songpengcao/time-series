@@ -17,15 +17,15 @@ logger = logging.getLogger(__name__)
 
 
 # CONST
-LINE_NUM_SET = [9, 21, 28, 29, 34]
+LINE_NUM_SET = [9, 28, 29, 34]
 BATCH_SIZE = 1
 THRESHOLD = 0.5
 
 MODEL_PATH = "model_reg_cls_alpha=10.pth"
 
 
-def get_model(device):
-    model_path = os.path.join(os.getcwd(), MODEL_PATH)
+def get_model(args, device):
+    model_path = os.path.join(os.getcwd(), args.model_name)
     logger.info("Load model from: {}".format(str(model_path)))
     model = LineNet(128).to(device)
     model.load_state_dict(torch.load(model_path))
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using {device} device")
 
-    model = get_model(device)
+    model = get_model(args, device)
     
     test_dataset = Dataset("test")
     test_label = np.loadtxt('./Data/test/label.csv', delimiter=',').T[24:]
@@ -145,8 +145,8 @@ if __name__ == "__main__":
         acc_rate = acc_count[line_num] / SAMPLE_LEN
         error_score = all_error[:, line_num].mean()
 
+        print('line: {}, [error] -- {}'.format(line_num, round(error_score, 4)))
         print('line: {}. [all_recall] -- {}'.format(line_num, round(recall_score, 4)))
         print('line: {}, [all_precision] -- {}'.format(line_num, round(precision_score, 4)))
         print('line: {}, [acc_count] -- {}, [acc_rate] -- {}'.format(line_num, acc_count[line_num], round(acc_rate, 4)))
-        print('line: {}, [error] -- {}'.format(line_num, round(error_score, 4)))
         print()

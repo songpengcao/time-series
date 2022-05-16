@@ -4,7 +4,7 @@ import numpy as np
 
 import torch
 
-DATA_PATH = "/home/songpengcao/Autox/Thesis/time-series"
+DATA_PATH = "/home/csp/time-series"
 
 
 class Dataset(torch.utils.data.Dataset):
