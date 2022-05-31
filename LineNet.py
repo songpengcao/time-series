@@ -100,17 +100,17 @@ class LineNet(nn.Module):
         load_encode_state_two = load_encode_state_two.transpose(1, 2)        # (32, 30, 128)
         line_encode_state_two = line_encode_state_two.transpose(1, 2)        # (32, 41, 128)
 
-        l2l_attention = self.l2l(line_encode_state_two)
-        b2b_attention = self.b2b(load_encode_state_two)
+        b2b_attention = self.b2b(load_encode_state_two)                      # (32, 30, 128)
+        l2l_attention = self.l2l(line_encode_state_two)                      # (32, 41, 128)
         # b2l_attention = self.b2l(l2l_attention, b2b_attention)               # (32, 41, 128)
 
         b2l_attention, atten_score = self.b2l(l2l_attention, b2b_attention, return_scores=True)               # (32, 41, 128)
 
         # for attention plot
-        # foo = atten_score[0, 0, :, :].cpu().detach().numpy()
-        # plot_attention_score(foo, 1)
-        # foo = atten_score[0, 1, :, :].cpu().detach().numpy()
-        # plot_attention_score(foo, 2)
+        foo = atten_score[0, 0, :, :].cpu().detach().numpy()
+        plot_attention_score(foo, 1, "Attention Head 1")
+        foo = atten_score[0, 1, :, :].cpu().detach().numpy()
+        plot_attention_score(foo, 2, "Attention Head 2")
 
         return self.decoder(b2l_attention)
 
@@ -118,7 +118,7 @@ class LineNet(nn.Module):
 def main():
     print('Start')
 
-    model = LineNet(128).to('cuda')
+    model = LineNet(HIDDEN_SIZE).to('cuda')
     # print("The model have {} parameters in total.".format(sum(x.numel() for x in model.parameters())))
 
     input_tensor = torch.rand([32, 24, 71], device='cuda')
