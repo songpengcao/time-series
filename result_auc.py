@@ -51,6 +51,9 @@ if __name__ == "__main__":
     parser.add_argument("--model_name",
                         type=str,
                         default=MODEL_PATH)
+    parser.add_argument("--line_num",
+                        type=int,
+                        default=9)
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -61,7 +64,7 @@ if __name__ == "__main__":
     test_dataset = Dataset("test")
     test_label = np.loadtxt('./Data/test/label.csv', delimiter=',').T[24:]
 
-    line = 9
+    line = args.line_num
     line_label = []
     line_prob = []
     for i in tqdm(range(len(test_dataset))):
@@ -71,11 +74,8 @@ if __name__ == "__main__":
         y_cls, y_res= model(x, BATCH_SIZE, device)
         line_prob.append(y_cls[0][line].item())
         line_label.append(test_label[i][line])
-        if i == 1000:
-            break
 
     fpr, tpr, thresholds = roc_curve(line_label, line_prob)
     plot_roc_curve(fpr, tpr)
     auc_result = auc(fpr, tpr)
-    print(thresholds)
     print(auc_result)

@@ -19,15 +19,13 @@ logger = logging.getLogger(__name__)
 # CONST
 LINE_NUM_SET = [9, 28, 29, 34]
 BATCH_SIZE = 1
-THRESHOLD = 0.5
-
-MODEL_PATH = "model_reg_cls_alpha=10.pth"
 
 
 def get_model(args, device):
     model_path = os.path.join(os.getcwd(), args.model_name)
     logger.info("Load model from: {}".format(str(model_path)))
     model = LineNet(128).to(device)
+    print(model)
     model.load_state_dict(torch.load(model_path))
     model.eval()
     return model
@@ -70,7 +68,8 @@ def compute_multi_error(i, model, args, visualize=False):
             congestion_result[j][line_num] = 0 if pre_label == gt_label else 1
             now_error[j][line_num] = mean_squared_error([line_predict], [gt_value])
 
-        next_data, _, _ = test_dataset[i+1]  # np.ndarray (24, 71)
+        # next_data, _, _ = test_dataset[i+1]  # np.ndarray (24, 71)  raw
+        next_data, _, _ = test_dataset[i+j]  # np.ndarray (24, 71)  new TODO
         temp_input = next_data.copy()
         temp_input[-1, 30:] = pred_reg.cpu().detach().numpy()[0]
 
@@ -136,8 +135,9 @@ if __name__ == "__main__":
     all_error = np.zeros([SAMPLE_LEN, 41])
     acc_count = np.zeros(41)
 
-    for i in tqdm(range(SAMPLE_LEN)):
-        compute_multi_error(i, model, args)
+    # for i in tqdm(range(SAMPLE_LEN)):
+    #     compute_multi_error(i, model, args)
+    compute_multi_error(490, model, args)
 
     for line_num in LINE_NUM_SET:
         recall_score = all_recall[:, line_num].sum() / all_recall_count[line_num]
